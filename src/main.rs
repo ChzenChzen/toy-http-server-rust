@@ -1,21 +1,38 @@
-use std::net::TcpListener;
+use std::error::Error;
+use std::io::{Read, Write};
+use std::net::{TcpListener, TcpStream};
 
-const ADDRESS: &'static str = "127.0.0.1:4221";
+type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
-fn main() {
-    // You can use print statements as follows for debugging, they'll be visible when running tests.
-    println!("Logs from your program will appear here!");
+const ADDRESS: &str = "127.0.0.1:4221";
+const RESPONSE_OK: &str = "HTTP/1.1 200 OK\r\n\r\n";
 
-    let listener = TcpListener::bind(ADDRESS).unwrap();
+fn main() -> Result<()> {
+    println!("Listening on {ADDRESS}");
+    let listener = TcpListener::bind(ADDRESS)?;
 
     for stream in listener.incoming() {
         match stream {
-            Ok(_stream) => {
-                println!("accepted new connection");
+            Ok(mut stream) => {
+                handle_incoming(&mut stream)?;
             }
             Err(e) => {
                 println!("error: {}", e);
             }
         }
     }
+
+    Ok(())
+}
+
+fn handle_incoming(stream: &mut TcpStream) -> Result<()> {
+    let mut string = String::new();
+    stream.read_to_string(&mut string)?;
+    println!("accepted new connection, the message is `{string}`");
+    string.clear();
+
+    println!("sending `OK` response");
+    stream.write(RESPONSE_OK.as_bytes())?;
+
+    Ok(())
 }
