@@ -28,12 +28,12 @@ fn main() -> Result<()> {
 }
 
 fn handle_incoming(stream: &mut TcpStream) -> Result<()> {
-    let mut string = String::new();
-    stream.read_to_string(&mut string)?;
-    println!("accepted new connection, the message is `{string}`");
-    string.clear();
-
-    println!("sending `OK` response");
+    // let mut string = String::new();
+    // stream.read_to_string(&mut string)?;
+    // println!("accepted new connection, the message is `{string}`");
+    // string.clear();
+    //
+    // println!("sending `OK` response");
     stream.write_all(RESPONSE_OK)?;
 
     Ok(())
