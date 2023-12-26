@@ -1,11 +1,11 @@
 use std::{
-    io::{Read, Write},
+    io::{BufRead, Read, Write},
     net::{TcpListener, TcpStream},
 };
 
 const ADDRESS: &str = "127.0.0.1:4221";
 const OK: &[u8] = b"HTTP/1.1 200 OK\r\n\r\n";
-const NOT_FOUND: &[u8] = b"HTTP/1.1 404 NotFound\r\n\r\n";
+const NOT_FOUND: &[u8] = b"HTTP/1.1 404 Not Found\r\n\r\n";
 
 fn main() {
     println!("Listening on {ADDRESS}");
@@ -25,32 +25,33 @@ fn main() {
 }
 
 fn handle_incoming(stream: &mut TcpStream) {
-    let mut buffer = String::new();
+    let mut buffer = [0; 1024];
     stream
-        .read_to_string(&mut buffer)
+        .read(&mut buffer)
         .expect("Failed to read to string buffer");
 
-    match buffer.lines().next() {
-        None => panic!("The message is empty"),
-        Some(request_line) => {
-            let response = handle_request(request_line);
-            stream
-                .write_all(response)
-                .expect("Failed to write response");
-        }
-    }
+    let request_line = buffer
+        .lines()
+        .next()
+        .expect("Header is empty")
+        .expect("Failed to convert buffer into string");
+
+    let response = get_response(&request_line);
+
+    stream
+        .write_all(response)
+        .expect("Failed to write response");
 }
 
-fn handle_request(request_line: &str) -> &[u8] {
-    let [method, path, ..]: [&str; 3] = request_line
+fn get_response(request_line: &str) -> &[u8] {
+    let [_method, path, ..]: [&str; 3] = request_line
         .split_whitespace()
         .collect::<Vec<_>>()
         .try_into()
         .expect("Failed to parse request line");
 
-    if (method, path) == ("GET", "/") {
-        OK
-    } else {
-        NOT_FOUND
+    match path {
+        "/" => OK,
+        _ => NOT_FOUND,
     }
 }
