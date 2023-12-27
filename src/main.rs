@@ -1,4 +1,3 @@
-use nom::AsBytes;
 use std::{
     io::{BufRead, Read, Write},
     net::{TcpListener, TcpStream},
