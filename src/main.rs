@@ -4,9 +4,9 @@ use std::{
 };
 
 const ADDRESS: &str = "127.0.0.1:4221";
-const OK: &str = "HTTP/1.1 200 OK\r\n";
-const NOT_FOUND: &str = "HTTP/1.1 404 Not Found\r\n";
-const CONTENT_TYPE: &str = "Content-Type: text/plain\r\n";
+const OK: &str = "HTTP/1.1 200 OK";
+const NOT_FOUND: &str = "HTTP/1.1 404 Not Found";
+const CONTENT_TYPE: &str = "Content-Type: text/plain";
 
 fn main() {
     println!("Listening on {ADDRESS}");
@@ -54,11 +54,11 @@ fn get_response(request_line: &str) -> String {
     let parts: Vec<_> = path.splitn(3, '/').collect();
     match parts.as_slice() {
         &["", "echo", rest] => format!(
-            "{OK}{CONTENT_TYPE}Content-Length: {content_length}\r\n{rest}",
+            "{OK}\r\n{CONTENT_TYPE}\r\nContent-Length: {content_length}\r\n\r\n{rest}",
             content_length = rest.len(),
         ),
 
-        &["", ""] => OK.to_string(),
-        _ => NOT_FOUND.to_string(),
+        &["", ""] => format!("{OK}\r\n\r\n"),
+        _ => format!("{NOT_FOUND}\r\n\r\n"),
     }
 }
