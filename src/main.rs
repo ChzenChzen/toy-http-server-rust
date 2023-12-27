@@ -50,10 +50,7 @@ fn get_response(request_line: &str) -> String {
         .try_into()
         .expect("Failed to parse request line");
 
-    let last_path_part = path
-        .split('/')
-        .last()
-        .expect("Failed to parse last part of the path");
+    let last_path_part = path.split_once('/').expect("Failed to split path").1;
     let content_length = last_path_part.len();
 
     format!("{OK}\r\n{CONTENT_TYPE}\r\nContent-Length: {content_length}\r\n{last_path_part}\r\n")
