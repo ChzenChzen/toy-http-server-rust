@@ -4,8 +4,8 @@ use std::{
 };
 
 const ADDRESS: &str = "127.0.0.1:4221";
-const OK: &[u8] = b"HTTP/1.1 200 OK\r\n\r\n";
-const NOT_FOUND: &[u8] = b"HTTP/1.1 404 Not Found\r\n\r\n";
+const OK: &str = "HTTP/1.1 200 OK";
+const CONTENT_TYPE: &str = "Content-Type: text/plain";
 
 fn main() {
     println!("Listening on {ADDRESS}");
@@ -39,19 +39,22 @@ fn handle_incoming(stream: &mut TcpStream) {
     let response = get_response(&request_line);
 
     stream
-        .write_all(response)
+        .write_all(response.as_bytes())
         .expect("Failed to write response");
 }
 
-fn get_response(request_line: &str) -> &[u8] {
+fn get_response(request_line: &str) -> String {
     let [_method, path, ..]: [&str; 3] = request_line
         .split_whitespace()
         .collect::<Vec<_>>()
         .try_into()
         .expect("Failed to parse request line");
 
-    match path {
-        "/" => OK,
-        _ => NOT_FOUND,
-    }
+    let last_path_part = path
+        .split('/')
+        .last()
+        .expect("Failed to parse last part of the path");
+    let content_length = last_path_part.len();
+
+    format!("{OK}\r\n{CONTENT_TYPE}\r\nContent-Length: {content_length}\r\n{last_path_part}\r\n")
 }
