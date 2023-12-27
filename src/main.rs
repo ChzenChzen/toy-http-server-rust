@@ -1,11 +1,13 @@
+use nom::AsBytes;
 use std::{
     io::{BufRead, Read, Write},
     net::{TcpListener, TcpStream},
 };
 
 const ADDRESS: &str = "127.0.0.1:4221";
-const OK: &str = "HTTP/1.1 200 OK";
-const CONTENT_TYPE: &str = "Content-Type: text/plain";
+const OK: &str = "HTTP/1.1 200 OK\r\n";
+const NOT_FOUND: &str = "HTTP/1.1 404 Not Found\r\n";
+const CONTENT_TYPE: &str = "Content-Type: text/plain\r\n";
 
 fn main() {
     println!("Listening on {ADDRESS}");
@@ -50,8 +52,14 @@ fn get_response(request_line: &str) -> String {
         .try_into()
         .expect("Failed to parse request line");
 
-    let last_path_part = path.split_once('/').expect("Failed to split path").1;
-    let content_length = last_path_part.len();
+    let parts: Vec<_> = path.splitn(3, '/').collect();
+    match parts.as_slice() {
+        &["", "echo", rest] => format!(
+            "{OK}{CONTENT_TYPE}Content-Length: {content_length}\r\n{rest}",
+            content_length = rest.len(),
+        ),
 
-    format!("{OK}\r\n{CONTENT_TYPE}\r\nContent-Length: {content_length}\r\n{last_path_part}\r\n")
+        &["", ""] => OK.to_string(),
+        _ => NOT_FOUND.to_string(),
+    }
 }
