@@ -31,20 +31,21 @@ fn handle_incoming(stream: &mut TcpStream) {
         .read(&mut buffer)
         .expect("Failed to read to string buffer");
 
-    let request_line = buffer
-        .lines()
-        .next()
-        .expect("Header is empty")
-        .expect("Failed to convert buffer into string");
-
-    let response = get_response(&request_line);
+    let response = get_response(&buffer);
 
     stream
         .write_all(response.as_bytes())
         .expect("Failed to write response");
 }
 
-fn get_response(request_line: &str) -> String {
+const USER_AGENT_PATH: &str = "user-agent";
+const ECHO_PATH: &str = "echo";
+
+fn get_response(buffer: &[u8]) -> String {
+    let mut request = buffer.lines().filter_map(Result::ok);
+
+    let request_line = request.next().expect("Header is empty");
+
     let [_method, path, ..]: [&str; 3] = request_line
         .split_whitespace()
         .collect::<Vec<_>>()
@@ -53,11 +54,24 @@ fn get_response(request_line: &str) -> String {
 
     let parts: Vec<_> = path.splitn(3, '/').collect();
     match parts.as_slice() {
-        &["", "echo", rest] => format!(
+        &["", USER_AGENT_PATH] => {
+            let user_agent_line = request.nth(1).expect("Failed to get user agent line");
+
+            let user_agent = user_agent_line
+                .split_once(':')
+                .expect("Failed to split user agent line")
+                .1
+                .trim();
+
+            format!(
+                "{OK}\r\n{CONTENT_TYPE}\r\nContent-Length: {content_length}\r\n\r\n{user_agent}",
+                content_length = user_agent.len(),
+            )
+        }
+        &["", ECHO_PATH, rest] => format!(
             "{OK}\r\n{CONTENT_TYPE}\r\nContent-Length: {content_length}\r\n\r\n{rest}",
             content_length = rest.len(),
         ),
-
         &["", ""] => format!("{OK}\r\n\r\n"),
         _ => format!("{NOT_FOUND}\r\n\r\n"),
     }
