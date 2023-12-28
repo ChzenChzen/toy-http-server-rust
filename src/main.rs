@@ -1,6 +1,5 @@
 use std::{
-    io::{BufRead, Error, Lines, Read, Write},
-    iter::FilterMap,
+    io::{BufRead, Read, Write},
     net::{TcpListener, TcpStream},
 };
 
@@ -45,12 +44,7 @@ fn get_response(buffer: &[u8]) -> String {
     let mut request = buffer.lines().filter_map(Result::ok);
 
     let request_line = request.next().expect("Header is empty");
-
-    let [_method, path, ..]: [&str; 3] = request_line
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .try_into()
-        .expect("Failed to parse request line");
+    let path = extract_path(&request_line);
 
     let path_parts: Vec<_> = path.splitn(3, '/').collect();
     match path_parts.as_slice() {
@@ -62,6 +56,15 @@ fn get_response(buffer: &[u8]) -> String {
         &["", ""] => format!("{OK}\r\n\r\n"),
         _ => format!("{NOT_FOUND}\r\n\r\n"),
     }
+}
+
+fn extract_path(request_line: &str) -> &str {
+    let [_method, path, ..]: [&str; 3] = request_line
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .try_into()
+        .expect("Failed to parse request line");
+    path
 }
 
 fn user_agent_handler(mut request: impl Iterator<Item = String>) -> String {
