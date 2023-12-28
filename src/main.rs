@@ -48,7 +48,7 @@ fn get_response(buffer: &[u8]) -> String {
 
     let path_parts: Vec<_> = path.splitn(3, '/').collect();
     match path_parts.as_slice() {
-        &["", USER_AGENT_PATH] => user_agent_handler(&mut request),
+        &["", USER_AGENT_PATH] => get_user_agent_response(&mut request),
         &["", ECHO_PATH, rest] => format!(
             "{OK}\r\n{CONTENT_TYPE}\r\nContent-Length: {content_length}\r\n\r\n{rest}",
             content_length = rest.len(),
@@ -65,7 +65,7 @@ fn extract_path(request_line: &str) -> &str {
         .expect("Failed to parse request line")
 }
 
-fn user_agent_handler(mut request: impl Iterator<Item = String>) -> String {
+fn get_user_agent_response(mut request: impl Iterator<Item = String>) -> String {
     let user_agent_line = request.nth(1).expect("Failed to get user agent line");
 
     let user_agent = user_agent_line
