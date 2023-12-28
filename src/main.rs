@@ -59,12 +59,10 @@ fn get_response(buffer: &[u8]) -> String {
 }
 
 fn extract_path(request_line: &str) -> &str {
-    let [_method, path, ..]: [&str; 3] = request_line
+    request_line
         .split_whitespace()
-        .collect::<Vec<_>>()
-        .try_into()
-        .expect("Failed to parse request line");
-    path
+        .nth(1)
+        .expect("Failed to parse request line")
 }
 
 fn user_agent_handler(mut request: impl Iterator<Item = String>) -> String {
