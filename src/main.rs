@@ -11,12 +11,11 @@ const CONTENT_TYPE: &str = "Content-Type: text/plain";
 fn main() {
     println!("Listening on {ADDRESS}");
     let listener = TcpListener::bind(ADDRESS).expect("Failed to bind");
-
-    for connection in listener.incoming() {
-        match connection {
-            Ok(mut stream) => {
+    for stream in listener.incoming() {
+        match stream {
+            Ok(stream) => {
                 println!("Handling incoming");
-                handle_incoming(&mut stream);
+                std::thread::spawn(move || handle_incoming(stream));
             }
             Err(e) => {
                 println!("error: {}", e);
@@ -25,7 +24,7 @@ fn main() {
     }
 }
 
-fn handle_incoming(stream: &mut TcpStream) {
+fn handle_incoming(mut stream: TcpStream) {
     let mut buffer = [0; 1024];
     stream
         .read(&mut buffer)
