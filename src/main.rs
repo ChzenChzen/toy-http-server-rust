@@ -1,10 +1,12 @@
 use std::{
     io::{BufRead, Read, Write},
     net::{TcpListener, TcpStream},
+    path::PathBuf,
 };
 
 const ADDRESS: &str = "127.0.0.1:4221";
 const OK: &str = "HTTP/1.1 200 OK";
+const CREATED: &str = "HTTP/1.1 201 Created";
 const NOT_FOUND: &str = "HTTP/1.1 404 Not Found";
 const TEXT_PLAIN: &str = "Content-Type: text/plain";
 const OCTET_STREAM: &str = "Content-Type: application/octet-stream";
@@ -12,6 +14,9 @@ const CONTENT_LENGTH: &str = "Content-Length";
 const USER_AGENT_PATH: &str = "user-agent";
 const ECHO_PATH: &str = "echo";
 const FILES_PATH: &str = "files";
+const GET: &str = "GET";
+const POST: &str = "POST";
+const DIRECTORY_FLAG: &str = "--directory";
 
 fn main() {
     println!("Listening on {ADDRESS}");
@@ -35,33 +40,52 @@ fn handle_incoming(mut stream: TcpStream) {
         .read(&mut buffer)
         .expect("Failed to read to string buffer");
 
-    let response = get_response(&buffer);
+    let response = build_response(&buffer);
 
     stream
         .write_all(response.as_bytes())
         .expect("Failed to write response");
 }
 
-fn get_response(buffer: &[u8]) -> String {
+fn build_response(buffer: &[u8]) -> String {
     let mut request = buffer.lines().filter_map(Result::ok);
 
     let request_line = request.next().expect("Header is empty");
-    let path = extract_path(&request_line);
+    let [method, path, ..] = parse_request_line(&request_line);
 
     let path_parts: Vec<_> = path.splitn(3, '/').collect();
-    match path_parts.as_slice() {
-        &["", FILES_PATH, rest] => get_file_response(rest),
-        &["", USER_AGENT_PATH] => get_user_agent_response(&mut request),
-        &["", ECHO_PATH, rest] => format!(
+    match (method, path_parts.as_slice()) {
+        (GET, &["", FILES_PATH, filename]) => get_file_response(filename),
+        (POST, &["", FILES_PATH, filename]) => {
+            let body = request.skip(4).collect::<String>();
+            let body = body.trim_end_matches(char::from(0));
+            post_file_response(filename, body)
+        }
+        (_, &["", USER_AGENT_PATH]) => get_user_agent_response(&mut request),
+        (_, &["", ECHO_PATH, rest]) => format!(
             "{OK}\r\n{TEXT_PLAIN}\r\n{CONTENT_LENGTH}: {content_length}\r\n\r\n{rest}",
             content_length = rest.len(),
         ),
-        &["", ""] => format!("{OK}\r\n\r\n"),
+        (_, &["", ""]) => format!("{OK}\r\n\r\n"),
         _ => format!("{NOT_FOUND}\r\n\r\n"),
     }
 }
 
-const DIRECTORY_FLAG: &'static str = "--directory";
+fn post_file_response(filename: &str, content: impl AsRef<[u8]>) -> String {
+    let (flag, directory) = parse_arguments();
+    save_file(filename, &flag, &directory, content);
+    format!("{CREATED}\r\n\r\n")
+}
+
+fn save_file(filename: &str, flag: &str, directory: &str, content: impl AsRef<[u8]>) {
+    match (flag, directory) {
+        (DIRECTORY_FLAG, directory) => {
+            let path = PathBuf::from(directory).join(filename);
+            std::fs::write(path, content).expect("Failed to write file");
+        }
+        _ => panic!("Invalid flag for executable"),
+    }
+}
 
 fn get_file_response(filename: &str) -> String {
     let (flag, directory) = parse_arguments();
@@ -97,10 +121,11 @@ fn get_file(filename: &str, flag: &str, directory: &str) -> std::io::Result<Vec<
     }
 }
 
-fn extract_path(request_line: &str) -> &str {
+fn parse_request_line(request_line: &str) -> [&str; 3] {
     request_line
         .split_whitespace()
-        .nth(1)
+        .collect::<Vec<_>>()
+        .try_into()
         .expect("Failed to parse request line")
 }
 
