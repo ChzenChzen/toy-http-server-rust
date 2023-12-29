@@ -58,7 +58,7 @@ fn build_response(buffer: &[u8]) -> String {
         (GET, &["", FILES_PATH, filename]) => get_file_response(filename),
         (POST, &["", FILES_PATH, filename]) => {
             let body = request.skip(4).collect::<String>();
-            let body = body.trim_end_matches(char::from(0));
+            let body = body.trim_end_matches(0 as char);
             post_file_response(filename, body)
         }
         (_, &["", USER_AGENT_PATH]) => get_user_agent_response(&mut request),
